@@ -131,6 +131,39 @@
     color:var(--ink-mute); padding:16px 0 6px;
   }
 
+  /* the second lens: where was I */
+  .lens{
+    display:flex; gap:14px; align-items:center; margin-top:26px;
+    padding-top:20px; border-top:1px solid var(--line-soft);
+  }
+  .lensbtn{
+    font:inherit; cursor:pointer; background:none; border:0; padding:4px 0;
+    font-family:var(--mono); font-size:11px; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--ink-mute); border-bottom:1px solid var(--line);
+  }
+  .lensbtn:hover{color:var(--ink)}
+  .lensbtn:focus-visible{outline:2px solid var(--lit); outline-offset:3px}
+
+  .repo{padding:18px 0; border-bottom:1px solid var(--line-soft)}
+  .repo:last-child{border-bottom:0}
+  .repohead{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap}
+  .reponame{font-family:var(--serif); font-size:20px; color:var(--ink)}
+  .repowhen{font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; color:var(--ink-mute)}
+  .loops{
+    font-family:var(--mono); font-size:11px; letter-spacing:.05em;
+    color:var(--lit); margin:8px 0 0;
+  }
+  .files{
+    font-family:var(--mono); font-size:10.5px; color:var(--ink-mute);
+    margin:6px 0 0; line-height:1.8; word-break:break-all;
+  }
+  .said{font-size:14px; line-height:1.6; color:var(--ink-soft); margin:10px 0 0; max-width:64ch}
+  .said b{
+    font-family:var(--mono); font-size:10px; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--ink-mute); font-weight:600;
+    display:block; margin-bottom:3px;
+  }
+
   @media (max-width:640px){
     body{padding:0; align-items:flex-start}
     .device{border-left:0; border-right:0; border-radius:0; min-height:100vh}
@@ -158,6 +191,19 @@
     <p class="prov" id="prov" hidden></p>
     <div class="actions" id="actions" hidden>
       <button type="button" class="act primary" id="copyId">Copy session id</button>
+    </div>
+
+    <div class="lens">
+      <button type="button" class="lensbtn" id="toLens">Where was I</button>
+    </div>
+  </div>
+
+  <div class="stage" id="lensview" hidden style="padding-top:38px">
+    <div class="lamp"><span class="bulb"></span><span>Where was I</span></div>
+    <p class="reading small" id="lensHead">&#8230;</p>
+    <div id="repos" style="margin-top:26px"></div>
+    <div class="lens">
+      <button type="button" class="lensbtn" id="toFleet">Back to the fleet</button>
     </div>
   </div>
 
@@ -343,6 +389,46 @@
     });
   });
 
+  // ---- the second lens: where was I ----
+  function drawRepos(data){
+    $("lensHead").textContent = data.headline || "";
+    var host = $("repos");
+    host.textContent = "";
+    (data.repos || []).forEach(function(r){
+      var el = document.createElement("div");
+      el.className = "repo";
+      var when = r.quiet_s ? human(r.quiet_s) + " ago" : "";
+      var h = '<div class="repohead"><span class="reponame">' + esc(r.repo) + "</span>" +
+              '<span class="repowhen">' + esc(when) +
+              (r.branch ? " &#183; " + esc(r.branch) : "") +
+              (r.live ? " &#183; live" : "") + "</span></div>";
+      if (r.open_loops && r.open_loops.length){
+        h += '<p class="loops">' + esc(r.open_loops.join("  \u00b7  ")) + "</p>";
+        if (r.dirty_files && r.dirty_files.length){
+          h += '<p class="files">' + r.dirty_files.map(esc).join("<br>") + "</p>";
+        }
+      }
+      if (r.you)     h += '<p class="said"><b>you said</b>' + esc(r.you) + "</p>";
+      if (r.claude)  h += '<p class="said"><b>it answered</b>' + esc(r.claude) + "</p>";
+      el.innerHTML = h;
+      host.appendChild(el);
+    });
+  }
+
+  function showLens(on){
+    document.querySelectorAll(".stage")[0].hidden = on;
+    $("lensview").hidden = !on;
+    document.querySelector(".rail").hidden = on;
+    if (on){
+      $("lensHead").textContent = "Reading the repos\u2026";
+      fetch("/api/continuity").then(function(r){ return r.json(); })
+        .then(drawRepos)
+        .catch(function(){ $("lensHead").textContent = "Could not read the repos."; });
+    }
+  }
+  $("toLens").addEventListener("click", function(){ showLens(true); });
+  $("toFleet").addEventListener("click", function(){ showLens(false); });
+
   var es;
   function connect(){
     es = new EventSource("/api/stream");
@@ -359,6 +445,8 @@
   // exposed so the alarm path can be exercised without waiting for a real
   // permission prompt -- QA'ing only the resting state is how alarms ship broken
   window.vigilRender = render;
+
+  if (location.hash === "#where") showLens(true);
 
   fetch("/api/state")
     .then(function(r){ return r.json(); })

@@ -12,6 +12,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from .continuity import report as continuity_report
 from .engine import Engine
 
 HOST, PORT = "127.0.0.1", 7717
@@ -49,6 +50,29 @@ def _poller() -> None:
         time.sleep(POLL_SECONDS)
 
 
+# the continuity scan walks git in several repos, so it is cached rather than
+# recomputed per request; it changes on the scale of commits, not seconds
+_cont: dict = {"at": 0.0, "data": None}
+_cont_lock = threading.Lock()
+CONTINUITY_TTL = 30.0
+
+
+def continuity() -> dict:
+    with _cont_lock:
+        if _cont["data"] and (time.time() - _cont["at"]) < CONTINUITY_TTL:
+            return _cont["data"]
+    with _cv:
+        live = {s["repo"] for s in _state.get("sessions", [])}
+    try:
+        data = continuity_report(live)
+    except Exception as exc:
+        data = {"at": time.time(), "headline": "Cannot read the repos.",
+                "error": f"{type(exc).__name__}: {exc}", "repos": []}
+    with _cont_lock:
+        _cont["at"], _cont["data"] = time.time(), data
+    return data
+
+
 def _public(state: dict) -> dict:
     return {k: v for k, v in state.items() if not k.startswith("_")}
 
@@ -77,6 +101,10 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/state":
             with _cv:
                 body = json.dumps(_public(_state)).encode()
+            return self._send(200, body, "application/json; charset=utf-8")
+
+        if path == "/api/continuity":
+            body = json.dumps(continuity()).encode()
             return self._send(200, body, "application/json; charset=utf-8")
 
         if path == "/api/stream":

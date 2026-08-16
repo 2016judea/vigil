@@ -73,6 +73,7 @@ final class Vigil: NSObject, NSApplicationDelegate {
 
     private let endpoint = URL(string: "http://127.0.0.1:7717/api/state")!
     private let faceURL = URL(string: "http://127.0.0.1:7717/")!
+    private let whereURL = URL(string: "http://127.0.0.1:7717/#where")!
 
     private let amber = NSColor(calibratedRed: 0.94, green: 0.66, blue: 0.23, alpha: 1)
 
@@ -234,6 +235,8 @@ final class Vigil: NSObject, NSApplicationDelegate {
 
     @objc private func openFace() { NSWorkspace.shared.open(faceURL) }
 
+    @objc private func openWhere() { NSWorkspace.shared.open(whereURL) }
+
     @objc private func copyFocusId() {
         guard let sid = fleet?.focus?.sessionId else { return }
         NSPasteboard.general.clearContents()
@@ -302,6 +305,7 @@ extension Vigil: NSMenuDelegate {
 
         menu.addItem(.separator())
         menu.addItem(action("Open the Face", #selector(openFace), key: "o"))
+        menu.addItem(action("Where was I", #selector(openWhere), key: "w"))
         if f.lamp {
             menu.addItem(action("Copy blocked session id", #selector(copyFocusId), key: "c"))
         }

@@ -13,10 +13,25 @@ That gives you three surfaces over one daemon:
 |---|---|
 | **Menu bar** | `~/Applications/Vigil.app` — a hollow dot at rest, a filled amber dot when a session is blocked. Click for the reading. |
 | **The Face** | <http://127.0.0.1:7717> — the full instrument, phone-readable |
-| **Terminal** | `vigil status` · `vigil watch` · `vigil rot` |
+| **Terminal** | `vigil status` · `vigil watch` · `vigil where` · `vigil rot` |
 
 The daemon runs under launchd: one instance, restarted if it dies, started at
 login. Python 3 standard library only. Localhost only. Nothing leaves the machine.
+
+## The three lenses
+
+One substrate, three questions:
+
+- **Who needs me** — the fleet. Only a session that literally cannot proceed
+  lights the lamp.
+- **Where was I** — `vigil where`, or "Where was I" on the Face. Per repo:
+  uncommitted files, commits not pushed, and the last thing each of you said.
+  **Every row is earned by a verifiable fact — git or a transcript, never a
+  guess.** Nothing is summarised or inferred, so there is no hallucination
+  surface. A continuity view you cannot trust is worse than none, because you
+  would act on it.
+- **What is rotting** — `vigil rot`. Skills still being reached for that no
+  longer exist on disk.
 
 ## Logs
 

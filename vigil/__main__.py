@@ -1,6 +1,7 @@
 """python3 -m vigil            -> run the daemon (serves the Face)
 python3 -m vigil status        -> one-shot terminal reading
 python3 -m vigil watch         -> live terminal reading
+python3 -m vigil where         -> what you were doing, and what is still open
 python3 -m vigil rot           -> skills reached for that no longer exist
 """
 
@@ -28,11 +29,11 @@ def human(s: float) -> str:
     return f"{s/86400:.0f}d"
 
 
-def _fetch() -> dict | None:
-    """Prefer the running daemon; fall back to a direct read so `status` works
-    even when nothing is serving."""
+def _fetch(path: str = "/api/state") -> dict | None:
+    """Prefer the running daemon; fall back to a direct read so the commands
+    still work when nothing is serving."""
     try:
-        with urllib.request.urlopen(f"http://{HOST}:{PORT}/api/state", timeout=3) as r:
+        with urllib.request.urlopen(f"http://{HOST}:{PORT}{path}", timeout=8) as r:
             return json.loads(r.read())
     except (urllib.error.URLError, OSError, ValueError):
         return None
@@ -74,6 +75,31 @@ def main() -> None:
 
     if cmd == "serve":
         return serve()
+
+    if cmd in ("where", "resume"):
+        st = _fetch("/api/continuity")
+        if st is None:
+            from .continuity import report
+            st = report()
+        print()
+        print(f"  {BOLD}{st['headline']}{RESET}")
+        print()
+        for r in st["repos"]:
+            when = human(r["quiet_s"]) + " ago" if r.get("quiet_s") else "-"
+            flag = f"{AMBER}◉{RESET}" if r["open_loops"] else f"{DIM}○{RESET}"
+            print(f"  {flag} {BOLD}{r['repo']}{RESET} {DIM}{when}{RESET}")
+            if r["open_loops"]:
+                print(f"      {AMBER}{' · '.join(r['open_loops'])}{RESET}")
+                for f in r["dirty_files"][:3]:
+                    print(f"        {DIM}{f}{RESET}")
+            if r.get("title"):
+                print(f"      {DIM}was: {r['title'][:72]}{RESET}")
+            if r.get("you"):
+                print(f"      {DIM}you: {r['you'][:72]}{RESET}")
+            print()
+        if not st["repos"]:
+            print(f"  {DIM}Nothing recent.{RESET}\n")
+        return
 
     if cmd == "rot":
         from .rot import report
