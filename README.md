@@ -2,12 +2,34 @@
 
 **An instrument for a fleet of Claude Code sessions. Its normal reading is *clear*.**
 
-    python3 -m vigil            # daemon + the Face at http://127.0.0.1:7717
-    python3 -m vigil status     # one-shot terminal reading
-    python3 -m vigil watch      # live terminal reading
-    python3 -m vigil rot        # skills reached for that no longer exist
+## Install
 
-Python 3 standard library only. Localhost only. Nothing leaves the machine.
+    ./mac/install.sh          # app + LaunchAgent + `vigil` on PATH
+    ./mac/install.sh --uninstall
+
+That gives you three surfaces over one daemon:
+
+| | |
+|---|---|
+| **Menu bar** | `~/Applications/Vigil.app` — a hollow dot at rest, a filled amber dot when a session is blocked. Click for the reading. |
+| **The Face** | <http://127.0.0.1:7717> — the full instrument, phone-readable |
+| **Terminal** | `vigil status` · `vigil watch` · `vigil rot` |
+
+The daemon runs under launchd: one instance, restarted if it dies, started at
+login. Python 3 standard library only. Localhost only. Nothing leaves the machine.
+
+## Two macOS traps this hit, so you do not have to
+
+- **`~/Desktop` is TCC-protected.** Terminal has been granted access, so
+  `python3 -m vigil` works by hand — but a launchd agent has no grant and no way
+  to prompt, so the interpreter **blocks forever in startup**, before it can even
+  load `encodings`. The symptom is a process that is alive, silent, and not
+  listening. The app therefore ships the Python package inside its own bundle and
+  launchd runs it from `~/Applications`, which is not protected.
+- **`HTTPServer.server_bind()` calls `socket.getfqdn()`** — a reverse-DNS lookup
+  that is instant in a shell and can stall under launchd. `_Server` overrides it.
+- **`contentTintColor` does nothing on a menu bar button.** macOS forces template
+  images monochrome, so the amber alarm is drawn as real pixels.
 
 ## Why it exists
 

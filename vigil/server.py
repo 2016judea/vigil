@@ -6,6 +6,7 @@ Localhost only. No egress. The corpus never leaves the machine.
 from __future__ import annotations
 
 import json
+import socketserver
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -101,11 +102,38 @@ class Handler(BaseHTTPRequestHandler):
         self._send(404, b"not found", "text/plain; charset=utf-8")
 
 
+class _Server(ThreadingHTTPServer):
+    """ThreadingHTTPServer with the reverse-DNS lookup removed.
+
+    HTTPServer.server_bind() calls socket.getfqdn(), which returns instantly in
+    a terminal and can block indefinitely under launchd. That single call is
+    why every daemon-launched instance sat alive but never listening.
+    """
+
+    daemon_threads = True
+
+    def server_bind(self) -> None:
+        socketserver.TCPServer.server_bind(self)
+        self.server_name = HOST
+        self.server_port = PORT
+
+
+def already_running() -> bool:
+    """A second daemon on the same port is worse than none -- two pollers race
+    and one of them silently loses the bind. Starting is idempotent."""
+    import socket
+    with socket.socket() as s:
+        s.settimeout(0.4)
+        return s.connect_ex((HOST, PORT)) == 0
+
+
 def serve() -> None:
+    if already_running():
+        print(f"vigil -- already running at http://{HOST}:{PORT}")
+        return
     threading.Thread(target=_poller, daemon=True).start()
-    httpd = ThreadingHTTPServer((HOST, PORT), Handler)
-    httpd.daemon_threads = True
-    print(f"vigil -- http://{HOST}:{PORT}")
+    httpd = _Server((HOST, PORT), Handler)
+    print(f"vigil -- http://{HOST}:{PORT}", flush=True)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
