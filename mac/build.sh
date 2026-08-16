@@ -6,7 +6,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DEST="${1:-$HOME/Applications}"
+DEST="${1:-/Applications}"
 APP="$DEST/Vigil.app"
 
 # The app shells out to the daemon, so it needs a python that exists at runtime.
@@ -31,6 +31,13 @@ rm -rf "$APP/Contents/Resources/vigil"
 cp -R "$ROOT/vigil" "$APP/Contents/Resources/vigil"
 rm -rf "$APP/Contents/Resources/vigil/__pycache__"
 
+# the icon: without one the app is a generic blank in Spotlight and Launchpad
+ICONSET="$(mktemp -d)/Vigil.iconset"
+swiftc -O -swift-version 5 -framework AppKit \
+  -o "$(dirname "$ICONSET")/makeicon" "$ROOT/mac/makeicon.swift"
+"$(dirname "$ICONSET")/makeicon" "$ICONSET" >/dev/null
+iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/Vigil.icns"
+
 swiftc -O \
   -swift-version 5 \
   -target arm64-apple-macosx13.0 \
@@ -47,6 +54,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleDisplayName</key><string>Vigil</string>
   <key>CFBundleIdentifier</key><string>dev.brickandmortar.vigil</string>
   <key>CFBundleExecutable</key><string>Vigil</string>
+  <key>CFBundleIconFile</key><string>Vigil</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>1.0</string>
   <key>CFBundleVersion</key><string>1</string>

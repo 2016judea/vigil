@@ -16,7 +16,7 @@ SHIM="$HOME/.local/bin/vigil"
 if [ "${1:-}" = "--uninstall" ]; then
   launchctl bootout "gui/$UID/$LABEL" 2>/dev/null || true
   rm -f "$PLIST" "$SHIM"
-  rm -rf "$HOME/Applications/Vigil.app"
+  rm -rf /Applications/Vigil.app "$HOME/Applications/Vigil.app"
   echo "vigil removed. (the repo and ~/.claude-archive are untouched)"
   exit 0
 fi
@@ -28,9 +28,15 @@ done
 [ -n "$PYTHON" ] || { echo "no python3 found" >&2; exit 1; }
 
 echo "1/3  building the app"
-"$ROOT/mac/build.sh" "$HOME/Applications" >/dev/null
+"$ROOT/mac/build.sh" /Applications >/dev/null
 
-RUNDIR="$HOME/Applications/Vigil.app/Contents/Resources"
+# Without this the app is invisible to Spotlight and Launchpad even though it
+# sits in /Applications -- a freshly written bundle is not registered until asked.
+LSREG=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+[ -x "$LSREG" ] && "$LSREG" -f /Applications/Vigil.app 2>/dev/null || true
+mdimport /Applications/Vigil.app 2>/dev/null || true
+
+RUNDIR="/Applications/Vigil.app/Contents/Resources"
 
 echo "2/3  installing the LaunchAgent"
 # launchd owns the daemon: one instance, restarted if it dies, started at login.
@@ -86,7 +92,7 @@ else
   echo "  daemon      NOT reachable -- check /tmp/vigil-daemon.log"
 fi
 echo "  the Face    http://127.0.0.1:7717"
-echo "  menu bar    open ~/Applications/Vigil.app"
+echo "  menu bar    open -a Vigil          (/Applications/Vigil.app)"
 case ":$PATH:" in
   *":$HOME/.local/bin:"*) echo "  terminal    vigil status" ;;
   *) echo "  terminal    vigil status   (add ~/.local/bin to PATH first)" ;;
