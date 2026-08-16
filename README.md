@@ -18,6 +18,14 @@ That gives you three surfaces over one daemon:
 The daemon runs under launchd: one instance, restarted if it dies, started at
 login. Python 3 standard library only. Localhost only. Nothing leaves the machine.
 
+## Logs
+
+    tail -f ~/Library/Logs/Vigil.log     # the menu bar app
+    tail -f /tmp/vigil-daemon.log        # the daemon (launchd writes here)
+
+The app logs launches, reopens, daemon reachability and every lamp transition --
+not every poll, so the file stays readable.
+
 ## Two macOS traps this hit, so you do not have to
 
 - **`~/Desktop` is TCC-protected.** Terminal has been granted access, so
@@ -30,6 +38,13 @@ login. Python 3 standard library only. Localhost only. Nothing leaves the machin
   that is instant in a shell and can stall under launchd. `_Server` overrides it.
 - **`contentTintColor` does nothing on a menu bar button.** macOS forces template
   images monochrome, so the amber alarm is drawn as real pixels.
+- **Nothing may be written inside a signed `.app`.** Python dropped
+  `__pycache__/*.pyc` into the bundle on first run, broke the seal
+  (`a sealed resource is missing or invalid`) and the app stopped launching from
+  Finder. The bundle is now immutable; the package lives in Application Support.
+- **A menu bar app gives no feedback when launched**, and none at all when
+  launched while already running. Vigil opens its own menu on launch and on
+  reopen, so the click visibly does something.
 
 ## Why it exists
 

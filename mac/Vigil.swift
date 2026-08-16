@@ -42,6 +42,25 @@ func human(_ s: Double) -> String {
     return "\(Int((s / 86400).rounded()))d"
 }
 
+// MARK: - logging
+
+/// A menu bar app has nowhere to print, so it writes here.
+/// Tail it with:  tail -f ~/Library/Logs/Vigil.log
+let logURL = URL(fileURLWithPath: NSHomeDirectory() + "/Library/Logs/Vigil.log")
+
+func vlog(_ message: String) {
+    let stamp = ISO8601DateFormatter().string(from: Date())
+    let line = "\(stamp)  \(message)\n"
+    guard let data = line.data(using: .utf8) else { return }
+    if let fh = try? FileHandle(forWritingTo: logURL) {
+        defer { try? fh.close() }
+        _ = try? fh.seekToEnd()
+        try? fh.write(contentsOf: data)
+    } else {
+        try? data.write(to: logURL)
+    }
+}
+
 // MARK: - the app
 
 final class Vigil: NSObject, NSApplicationDelegate {
@@ -70,6 +89,27 @@ final class Vigil: NSObject, NSApplicationDelegate {
         timer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
             self?.poll()
         }
+
+        vlog("launched; menu bar item installed")
+
+        // Opening an app and getting no feedback at all is not "conventional
+        // for a menu bar app", it is just bad. Drop the menu open once on
+        // launch so it is obvious the click worked and where the icon lives.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in
+            self?.revealMenu()
+        }
+    }
+
+    /// Clicking the app in Spotlight while it is already running otherwise does
+    /// nothing at all -- macOS just re-activates it. Show the menu instead.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        vlog("reopened from Finder/Spotlight")
+        revealMenu()
+        return true
+    }
+
+    private func revealMenu() {
+        item.button?.performClick(nil)
     }
 
     // MARK: icon
@@ -131,10 +171,17 @@ final class Vigil: NSObject, NSApplicationDelegate {
             guard let self else { return }
             let parsed: Fleet? = data.flatMap { try? JSONDecoder().decode(Fleet.self, from: $0) }
             DispatchQueue.main.async {
+                let was = self.reachable
+                let wasLamp = self.fleet?.lamp ?? false
                 if let parsed {
                     self.fleet = parsed
                     self.reachable = true
+                    if !was { vlog("daemon reachable") }
+                    if parsed.lamp != wasLamp {
+                        vlog(parsed.lamp ? "LAMP ON  -- \(parsed.headline)" : "lamp off -- clear")
+                    }
                 } else {
+                    if was { vlog("lost the daemon") }
                     self.reachable = false
                     self.autostartOnce()
                 }
@@ -147,9 +194,13 @@ final class Vigil: NSObject, NSApplicationDelegate {
     private func autostartOnce() {
         guard !startedDaemon else { return }
         startedDaemon = true
+        vlog("daemon not reachable; starting it")
         let root = Bundle.main.object(forInfoDictionaryKey: "VigilRepoPath") as? String ?? ""
         let python = Bundle.main.object(forInfoDictionaryKey: "VigilPython") as? String ?? "/usr/bin/python3"
-        guard !root.isEmpty, FileManager.default.fileExists(atPath: root) else { return }
+        guard !root.isEmpty, FileManager.default.fileExists(atPath: root) else {
+            vlog("cannot start daemon: package missing at \(root)")
+            return
+        }
 
         // Never send this to /dev/null. A daemon that fails to start silently
         // is indistinguishable from one that started, and cost two debug rounds.
@@ -195,7 +246,10 @@ final class Vigil: NSObject, NSApplicationDelegate {
         NSPasteboard.general.setString(sid, forType: .string)
     }
 
-    @objc private func quit() { NSApp.terminate(nil) }
+    @objc private func quit() {
+        vlog("quit")
+        NSApp.terminate(nil)
+    }
 }
 
 // MARK: - the menu, rebuilt each time it opens
