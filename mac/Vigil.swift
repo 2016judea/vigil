@@ -165,6 +165,8 @@ final class Vigil: NSObject, NSApplicationDelegate {
         // process does not inherit the way a shell does.
         var env = ProcessInfo.processInfo.environment
         env["PYTHONPATH"] = root
+        // never let Python write bytecode into a signed bundle
+        env["PYTHONPYCACHEPREFIX"] = NSHomeDirectory() + "/Library/Caches/vigil"
         p.environment = env
         if let log {
             p.standardOutput = log

@@ -16,6 +16,7 @@ SHIM="$HOME/.local/bin/vigil"
 if [ "${1:-}" = "--uninstall" ]; then
   launchctl bootout "gui/$UID/$LABEL" 2>/dev/null || true
   rm -f "$PLIST" "$SHIM"
+  rm -rf "$HOME/Library/Application Support/Vigil" "$HOME/Library/Caches/vigil"
   rm -rf /Applications/Vigil.app "$HOME/Applications/Vigil.app"
   echo "vigil removed. (the repo and ~/.claude-archive are untouched)"
   exit 0
@@ -27,7 +28,17 @@ for cand in /opt/homebrew/bin/python3 /usr/bin/python3 /usr/local/bin/python3; d
 done
 [ -n "$PYTHON" ] || { echo "no python3 found" >&2; exit 1; }
 
-echo "1/3  building the app"
+SUPPORT="$HOME/Library/Application Support/Vigil"
+
+echo "1/4  staging the daemon outside the app bundle"
+# Not in the .app (writing there breaks its signature) and not in ~/Desktop
+# (TCC-protected, so a LaunchAgent hangs in interpreter startup).
+mkdir -p "$SUPPORT"
+rm -rf "$SUPPORT/vigil"
+cp -R "$ROOT/vigil" "$SUPPORT/vigil"
+rm -rf "$SUPPORT/vigil/__pycache__"
+
+echo "2/4  building the app"
 "$ROOT/mac/build.sh" /Applications >/dev/null
 
 # Without this the app is invisible to Spotlight and Launchpad even though it
@@ -36,9 +47,9 @@ LSREG=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchService
 [ -x "$LSREG" ] && "$LSREG" -f /Applications/Vigil.app 2>/dev/null || true
 mdimport /Applications/Vigil.app 2>/dev/null || true
 
-RUNDIR="/Applications/Vigil.app/Contents/Resources"
+RUNDIR="$SUPPORT"
 
-echo "2/3  installing the LaunchAgent"
+echo "3/4  installing the LaunchAgent"
 # launchd owns the daemon: one instance, restarted if it dies, started at login.
 # Letting the app spawn it produced orphans that were alive but not listening.
 mkdir -p "$HOME/Library/LaunchAgents"
@@ -57,7 +68,11 @@ cat > "$PLIST" <<PLIST_EOF
   </array>
   <key>WorkingDirectory</key><string>$RUNDIR</string>
   <key>EnvironmentVariables</key>
-  <dict><key>PYTHONPATH</key><string>$RUNDIR</string></dict>
+  <dict>
+    <key>PYTHONPATH</key><string>$RUNDIR</string>
+    <!-- keep bytecode out of anything signed or version-controlled -->
+    <key>PYTHONPYCACHEPREFIX</key><string>$HOME/Library/Caches/vigil</string>
+  </dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
   <key>StandardOutPath</key><string>/tmp/vigil-daemon.log</string>
@@ -71,7 +86,7 @@ pkill -f "\-m vigil" 2>/dev/null || true
 sleep 1
 launchctl bootstrap "gui/$UID" "$PLIST"
 
-echo "3/3  putting \`vigil\` on PATH"
+echo "4/4  putting \`vigil\` on PATH"
 mkdir -p "$(dirname "$SHIM")"
 cat > "$SHIM" <<SHIM_EOF
 #!/bin/bash
@@ -81,7 +96,7 @@ chmod +x "$SHIM"
 # the shim needs the package importable from anywhere, not just the repo
 printf '%s\n' "PYTHONPATH=$ROOT" >/dev/null
 sed -i '' "2i\\
-export PYTHONPATH=\"$RUNDIR:\${PYTHONPATH:-}\"
+export PYTHONPATH=\"$RUNDIR:\${PYTHONPATH:-}\"; export PYTHONPYCACHEPREFIX=\"$HOME/Library/Caches/vigil\"
 " "$SHIM"
 
 sleep 3

@@ -23,13 +23,15 @@ echo "dest:   $APP"
 
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-# Ship the Python package inside the bundle. ~/Desktop is a TCC-protected
-# folder: Terminal has been granted access so manual runs work, but a launchd
-# agent has no grant and no way to prompt, so the interpreter blocks forever in
-# startup. ~/Applications is not protected, so the app must carry its own code.
-rm -rf "$APP/Contents/Resources/vigil"
-cp -R "$ROOT/vigil" "$APP/Contents/Resources/vigil"
-rm -rf "$APP/Contents/Resources/vigil/__pycache__"
+# The .app is a signed, IMMUTABLE viewer -- no Python inside it.
+#
+# It used to carry the package, and Python wrote __pycache__/*.pyc into the
+# bundle on first run, which broke the code signature ("a sealed resource is
+# missing or invalid") and made Gatekeeper refuse to launch it from Finder.
+# Nothing may write inside a signed bundle. The package lives in Application
+# Support instead -- also outside TCC-protected ~/Desktop, which is the other
+# reason it cannot live in the repo.
+SUPPORT="$HOME/Library/Application Support/Vigil"
 
 # the icon: without one the app is a generic blank in Spotlight and Launchpad
 ICONSET="$(mktemp -d)/Vigil.iconset"
@@ -61,7 +63,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <!-- menu bar only: no Dock icon, no app switcher entry -->
   <key>LSUIElement</key><true/>
-  <key>VigilRepoPath</key><string>$APP/Contents/Resources</string>
+  <key>VigilRepoPath</key><string>$SUPPORT</string>
   <key>VigilPython</key><string>$PYTHON</string>
 </dict>
 </plist>
