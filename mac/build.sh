@@ -9,6 +9,12 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEST="${1:-/Applications}"
 APP="$DEST/Vigil.app"
 
+# macOS files privacy grants, launchd jobs and Launch Services registration under
+# this string, so it belongs to whoever installs -- not to whoever wrote it. The
+# default squats no domain; override it with one you own if you ever sign or
+# distribute the app.
+BUNDLE_ID="${VIGIL_BUNDLE_ID:-local.vigil}"
+
 # The app shells out to the daemon, so it needs a python that exists at runtime.
 # Prefer a stable system-wide one over a project virtualenv, which can vanish.
 PYTHON=""
@@ -20,6 +26,7 @@ done
 echo "repo:   $ROOT"
 echo "python: $PYTHON"
 echo "dest:   $APP"
+echo "id:     $BUNDLE_ID"
 
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
@@ -54,7 +61,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <dict>
   <key>CFBundleName</key><string>Vigil</string>
   <key>CFBundleDisplayName</key><string>Vigil</string>
-  <key>CFBundleIdentifier</key><string>dev.brickandmortar.vigil</string>
+  <key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
   <key>CFBundleExecutable</key><string>Vigil</string>
   <key>CFBundleIconFile</key><string>Vigil</string>
   <key>CFBundlePackageType</key><string>APPL</string>

@@ -11,15 +11,37 @@
 # what reads it -- exporting it in your own shell does nothing once the daemon is
 # up, since the CLI just asks the daemon:
 #   VIGIL_ROOTS=~/code:~/work ./mac/install.sh
+#
+# VIGIL_BUNDLE_ID sets the app identity and the launchd label. Use a domain you
+# own if you sign or distribute; the default squats nothing:
+#   VIGIL_BUNDLE_ID=dev.example.vigil ./mac/install.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-LABEL="dev.brickandmortar.vigil"
+export VIGIL_BUNDLE_ID="${VIGIL_BUNDLE_ID:-local.vigil}"   # build.sh reads this too
+LABEL="$VIGIL_BUNDLE_ID"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 SHIM="$HOME/.local/bin/vigil"
 
+# Every LaunchAgent that runs this daemon, whatever it happens to be labelled.
+# The bundle id is configurable, so a rename would otherwise leave the old job
+# running beside the new one -- two pollers racing for one port, which is the
+# failure the daemon's own already_running() check exists to prevent. Match on
+# what a job DOES, not on what it is called.
+sweep_agents() {
+  local p base
+  for p in "$HOME"/Library/LaunchAgents/*.plist; do
+    [ -f "$p" ] || continue
+    grep -q -- '<string>-m</string>' "$p" 2>/dev/null \
+      && grep -q -- '<string>vigil</string>' "$p" 2>/dev/null || continue
+    base="$(basename "$p" .plist)"
+    launchctl bootout "gui/$UID/$base" 2>/dev/null || true
+    rm -f "$p"
+  done
+}
+
 if [ "${1:-}" = "--uninstall" ]; then
-  launchctl bootout "gui/$UID/$LABEL" 2>/dev/null || true
+  sweep_agents
   rm -f "$PLIST" "$SHIM"
   rm -rf "$HOME/Library/Application Support/Vigil" "$HOME/Library/Caches/vigil"
   rm -rf /Applications/Vigil.app "$HOME/Applications/Vigil.app"
@@ -65,6 +87,9 @@ echo "3/4  installing the LaunchAgent"
 # launchd owns the daemon: one instance, restarted if it dies, started at login.
 # Letting the app spawn it produced orphans that were alive but not listening.
 mkdir -p "$HOME/Library/LaunchAgents"
+# Before writing ours, not after -- the sweep matches any agent running `-m vigil`,
+# which includes the plist below the moment it exists.
+sweep_agents
 cat > "$PLIST" <<PLIST_EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -94,7 +119,6 @@ $ROOTS_ENTRY
 </plist>
 PLIST_EOF
 
-launchctl bootout "gui/$UID/$LABEL" 2>/dev/null || true
 pkill -f "\-m vigil" 2>/dev/null || true
 sleep 1
 launchctl bootstrap "gui/$UID" "$PLIST"

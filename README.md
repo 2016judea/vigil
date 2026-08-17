@@ -38,6 +38,21 @@ and grant the app Full Disk Access — those two are TCC-protected, and an
 ungranted launchd agent **hangs** on them rather than failing (see the traps
 below). The daemon runs as a LaunchAgent, so this is not hypothetical.
 
+### App identity
+
+The app and its LaunchAgent are identified by `local.vigil`, which deliberately
+claims no domain. macOS files privacy grants, launchd jobs and Launch Services
+registration under that string, so if you sign or distribute the app, use one you
+own:
+
+    VIGIL_BUNDLE_ID=dev.example.vigil ./mac/install.sh
+
+Renaming is safe to do later. `install.sh` boots out and deletes **any**
+LaunchAgent that runs this daemon, whatever it was previously labelled, before
+installing the new one — otherwise two pollers would race for port 7717. The
+grant that lets the daemon read your repos is attached to the Python binary, not
+to the bundle id, so it survives a rename.
+
 ### What the port serves
 
 `http://127.0.0.1:7717` binds to loopback and requires no auth, which is the
