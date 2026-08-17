@@ -73,11 +73,13 @@ not every poll, so the file stays readable.
 
 ## The macOS traps this hit, so you do not have to
 
-- **A TCC-protected directory does not fail, it hangs.** Globbing `~/Documents`
-  from the launchd agent blocked `/api/continuity` *forever* — no error, no
-  timeout, no prompt, just a lens that never answered. `try`/`except` cannot
-  catch a block. This is why `Documents` and `Downloads` are not in the default
-  roots above and must be named explicitly instead.
+- **A TCC-protected directory does not fail, it stalls.** Globbing `~/Documents`
+  from the launchd agent left `/api/continuity` unanswered past 25 seconds — no
+  error, no exception, just a lens that never returned. The access was waiting on
+  an authorization decision a launchd agent cannot ask a human for; the grant
+  turned up in the TCC database *during* the hang. `try`/`except` cannot catch a
+  block. This is why `Documents` and `Downloads` are not in the default roots
+  above — reaching into a protected directory has to be opt-in.
 - **`~/Desktop` is TCC-protected.** Terminal has been granted access, so
   `python3 -m vigil` works by hand — but a launchd agent has no grant and no way
   to prompt, so the interpreter **blocks forever in startup**, before it can even

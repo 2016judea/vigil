@@ -23,11 +23,11 @@ PROJECTS = HOME / ".claude" / "projects"
 # the conventional places a checkout sits, one level below home.
 #
 # `Documents` and `Downloads` are deliberately absent. They are TCC-protected,
-# and a launchd agent has no grant and no way to prompt -- so merely globbing
-# one BLOCKS FOREVER instead of raising, which no try/except can catch. Adding
-# `Documents` here hung /api/continuity permanently; the lens never answered.
-# `Desktop` is protected too, but it is where the daemon was already reading
-# from and it is granted; anything else goes in VIGIL_ROOTS explicitly.
+# and until a grant exists the access STALLS rather than raising -- nothing a
+# try/except can catch, because there is no exception. Adding `Documents` here
+# left /api/continuity unanswered past 25s; the grant showed up in the TCC
+# database mid-hang. `Desktop` is protected too, but the daemon already holds a
+# grant for it. Anything else goes in VIGIL_ROOTS, so the stall is opt-in.
 _DEFAULT_ROOTS = ("Desktop", "code", "src", "dev", "repos", "projects", "work")
 
 # how much of a transcript tail to parse; bounded so a 50MB session stays cheap
