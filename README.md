@@ -11,12 +11,42 @@ That gives you three surfaces over one daemon:
 
 | | |
 |---|---|
-| **Menu bar** | `~/Applications/Vigil.app` — a hollow dot at rest, a filled amber dot when a session is blocked. Click for the reading. |
+| **Menu bar** | `/Applications/Vigil.app` — a hollow dot at rest, a filled amber dot when a session is blocked. Click for the reading. |
 | **The Face** | <http://127.0.0.1:7717> — the full instrument, phone-readable |
 | **Terminal** | `vigil status` · `vigil watch` · `vigil where` · `vigil rot` |
 
 The daemon runs under launchd: one instance, restarted if it dies, started at
 login. Python 3 standard library only. Localhost only. Nothing leaves the machine.
+
+### Where it looks for your repos
+
+The continuity and rot lenses need to know where checkouts live. By default they
+look one level below `$HOME` in `Desktop`, `code`, `src`, `dev`, `repos`,
+`projects` and `work` — whichever exist. Override it at install time:
+
+    VIGIL_ROOTS=~/code:~/work/clients ./mac/install.sh
+
+It has to reach **the daemon**, which is what reads the repos — so `install.sh`
+bakes it into the LaunchAgent. Exporting it in your own shell does nothing once
+the daemon is up, because `vigil where` just asks the daemon.
+
+Continuity also picks up any repo your transcripts show you actually writing to,
+whether or not it sits under a root.
+
+If you keep repos in `~/Documents` or `~/Downloads`, name them in `VIGIL_ROOTS`
+and grant the app Full Disk Access — those two are TCC-protected, and an
+ungranted launchd agent **hangs** on them rather than failing (see the traps
+below). The daemon runs as a LaunchAgent, so this is not hypothetical.
+
+### What the port serves
+
+`http://127.0.0.1:7717` binds to loopback and requires no auth, which is the
+right trade for a personal instrument but worth stating plainly: `/api/state`
+returns **the last thing you typed** (400 chars) and the last thing Claude said
+(600 chars) per live session, and `/api/continuity` returns your branch names and
+uncommitted filenames. Anything that can reach your loopback interface can read
+that. There is no egress, no telemetry, and nothing is written outside
+`~/Library/Logs` and `/tmp`.
 
 ## The three lenses
 
@@ -41,14 +71,21 @@ One substrate, three questions:
 The app logs launches, reopens, daemon reachability and every lamp transition --
 not every poll, so the file stays readable.
 
-## Two macOS traps this hit, so you do not have to
+## The macOS traps this hit, so you do not have to
 
+- **A TCC-protected directory does not fail, it hangs.** Globbing `~/Documents`
+  from the launchd agent blocked `/api/continuity` *forever* — no error, no
+  timeout, no prompt, just a lens that never answered. `try`/`except` cannot
+  catch a block. This is why `Documents` and `Downloads` are not in the default
+  roots above and must be named explicitly instead.
 - **`~/Desktop` is TCC-protected.** Terminal has been granted access, so
   `python3 -m vigil` works by hand — but a launchd agent has no grant and no way
   to prompt, so the interpreter **blocks forever in startup**, before it can even
   load `encodings`. The symptom is a process that is alive, silent, and not
-  listening. The app therefore ships the Python package inside its own bundle and
-  launchd runs it from `~/Applications`, which is not protected.
+  listening. `install.sh` therefore stages the Python package into
+  `~/Library/Application Support/Vigil` and points the LaunchAgent's
+  `WorkingDirectory` and `PYTHONPATH` there — outside every protected directory,
+  and outside the signed bundle (see the last trap).
 - **`HTTPServer.server_bind()` calls `socket.getfqdn()`** — a reverse-DNS lookup
   that is instant in a shell and can stall under launchd. `_Server` overrides it.
 - **`contentTintColor` does nothing on a menu bar button.** macOS forces template
@@ -96,9 +133,8 @@ Two details that are easy to get wrong, and were:
 - **A pending `tool_use` is ambiguous.** It means "blocked on a prompt" *or*
   "mid-call right now". Only a two-sample delta separates them. A live session
   was caught as a false positive while this was being written.
-- **`cwd` lies.** Sessions launched in `bricks` routinely write to
-  `writing-topology` or `literature-mutations`. Attribution keys on the git root
-  actually *written to*.
+- **`cwd` lies.** A session launched in one repo routinely ends up writing to a
+  sibling. Attribution keys on the git root actually *written to*.
 
 ## Tests
 

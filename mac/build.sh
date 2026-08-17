@@ -1,8 +1,8 @@
 #!/bin/bash
 # Build Vigil.app -- a real native menu bar app, no runtime dependencies.
 #
-#   ./mac/build.sh            -> builds to ~/Applications/Vigil.app
-#   ./mac/build.sh /Applications
+#   ./mac/build.sh            -> builds to /Applications/Vigil.app
+#   ./mac/build.sh ~/Applications
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

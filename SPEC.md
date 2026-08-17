@@ -2,16 +2,16 @@
 
 **A vigil is defined by nothing happening.** That is the product.
 
-grounded: 2026-08-16 — built from 351 real sessions / 33 days of Aidan's own
-Claude Code exhaust, mined in the session that wrote this spec.
+grounded: 2026-08-16 — built from 351 real sessions / 33 days of one operator's
+own Claude Code exhaust, mined in the session that wrote this spec.
 
 ---
 
 ## The thesis
 
 Brick & Mortar turns a city's public exhaust into a spatial model an AI reasons
-over. VIGIL is the same move pointed inward: **it turns Aidan's own Claude
-exhaust into a model of how he works**, and puts one instrument on top of it.
+over. VIGIL is the same move pointed inward: **it turns your own Claude exhaust
+into a model of how you work**, and puts one instrument on top of it.
 
 The fleet already exists. It is not made of subagents — it is made of terminal
 tabs. Measured over 33 days:
@@ -28,7 +28,7 @@ tabs. Measured over 33 days:
 | Skill calls to skills that no longer exist | **~210** |
 | Hooks configured | **0** |
 
-He is a dispatcher — 14 tool calls per instruction typed — running a real fleet
+That is a dispatcher — 14 tool calls per instruction typed — running a real fleet
 on human attention alone.
 
 ## What it is not
@@ -36,26 +36,28 @@ on human attention alone.
 Not a kanban. Not a session list. Claude Code already ships **Agent View**
 (`claude agents`), and every third-party tool — Conductor, Crystal, Claude Squad,
 Vibe Kanban, Nimbalyst — is a re-implementation of it. They manage *processes*.
-None of them know anything about him.
+None of them know anything about you.
 
 ## The one rule
 
 > Design the resting state first, because it is the state.
 
 Most of the time the reading is **clear**. Every competitor treats that as the
-empty case — grey text, nothing to see. It is the screen he will look at ninety
+empty case — grey text, nothing to see. It is the screen you will look at ninety
 percent of the time, so it gets the most care.
 
-*(Back-reference: the Ive critique in this session — hierarchy is "removing those
-things that are all vying for your attention," not removing things. See
-`~/.claude/skills/jony-ive/corpus/2008-00-00-objectified-interview.md`.)*
+*(The principle, after Jony Ive in Gary Hustwit's "Objectified" (2009):
+hierarchy is about removing the things that all vie for your attention — not
+about removing things.)*
 
 ## The guardrail, which is not optional
 
 The reduction lives in **what is shown at rest**, never in **what can be found**.
 Contrast stays high in both themes; every action stays labelled and reachable.
-Ive's own record — iOS 7, Button Shapes — is the reason this is written down.
-Aidan's attention-poor axiom in `~/.claude/CLAUDE.md` outranks the persona.
+The cautionary record is public: iOS 7 shipped thin, low-contrast type, and
+Apple had to add a Button Shapes accessibility toggle afterwards. Restraint that
+costs legibility is not restraint, and a reading you cannot make out is not a
+calm one.
 
 ---
 
@@ -95,19 +97,20 @@ list again.
 
 ### Reading hierarchy
 
-1. any `blocked` → **alarm.** The question in his own words + one action.
+1. any `blocked` → **alarm.** The question in its own words + one action.
 2. else any `yours` → quiet reading, no lamp: "Three answers waiting."
 3. else → **"Nothing needs you."**
 
 ### Naming and attribution
 
-- **Session name** comes from the `ai-title` transcript entry (`"Review Jony
-  Ive's feedback"`), not from `claude agents --json`'s `name` (`"bricks-e8"`).
+- **Session name** comes from the `ai-title` transcript entry (`"Add the
+  continuity lens"`), not from `claude agents --json`'s `name` (`"vigil-e8"`).
   Take the **last** `ai-title` in the file — it is re-emitted as the session
   drifts.
 - **Repo** is the git root most often *written to* (from `Edit`/`Write`
-  `file_path` params), **not** the launch `cwd`. Several sessions launched in
-  `bricks` were pushing to `writing-topology`; keying on `cwd` mislabels the rail.
+  `file_path` params), **not** the launch `cwd`. In the measured corpus, sessions
+  launched in one repo were routinely pushing to a sibling; keying on `cwd`
+  mislabels the rail.
 
 ### The rail
 
@@ -126,12 +129,13 @@ fleet — 42 sessions over six hours, 11 over a day.
 
 The Face is the first lens over the substrate. Two more, chosen with it:
 
-- **Rot** — skills invoked in transcripts vs. skills present on disk. Currently
-  ~210 invocations of skills that no longer exist (`gemini-web-search` 53×,
-  `mobile-qa` 42×, `copy-voice` 22×). This is tenet 9 failing in the direction
-  nobody watches: not a stale skill, a *silently missing* one.
+- **Rot** — skills invoked in transcripts vs. skills present on disk. In the
+  measured corpus ~210 invocations went to skills that no longer exist, the top
+  three at 53×, 42× and 22×. This is the failure nobody watches: not a *stale*
+  skill, a *silently missing* one. Nothing in the CLI reports it — a call to a
+  skill that is gone is not an error you ever see.
 - **Continuity** — what was decided, what is still open, per repo. Answers the 22
-  times in 33 days he typed some version of *where were we*.
+  times in 33 days some version of *where were we* got typed.
 
 ## Substrate preservation
 
@@ -149,6 +153,5 @@ Saying so is the honest version.
 
 - Not a replacement for Agent View — VIGIL reads alongside it.
 - Not orchestration. It does not spawn, route, or supervise agents. The data says
-  he does not run subagent fleets; he runs session fleets.
-- No cloud, no telemetry, no network egress. The corpus never leaves the machine
-  — same separation as the bricks substrate.
+  the fleet is not made of subagents; it is made of sessions.
+- No cloud, no telemetry, no network egress. The corpus never leaves the machine.

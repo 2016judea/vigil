@@ -1,8 +1,9 @@
 """The rot lens.
 
-Tenet 9 says a stale skill is worse than a missing one. There is a second
-failure it does not name and nobody watches: a skill that is *silently gone*
-while still being reached for. Over 33 days that happened ~210 times.
+A stale skill is a known problem -- it goes on applying dead assumptions at full
+confidence. The failure nobody watches is the other one: a skill that is
+*silently gone* while still being reached for. Over 33 days of measured usage
+that happened ~210 times, and nothing anywhere said so.
 
 This lens reads the archive, counts what was invoked, and subtracts what is
 still on disk.
@@ -11,21 +12,16 @@ still on disk.
 from __future__ import annotations
 
 import json
-import re
 from collections import Counter
 from pathlib import Path
 
-HOME = Path.home()
+from .engine import workspace_roots
 
-# every place a skill can live
-SKILL_DIRS = [
-    HOME / ".claude" / "skills",
-    *[p / ".claude" / "skills" for p in (HOME / "Desktop").glob("*") if p.is_dir()],
-]
+HOME = Path.home()
 PLUGIN_GLOB = HOME / ".claude" / "plugins" / "cache"
 
 # shipped with the CLI rather than present on disk -- counting these as missing
-# would cry wolf on every run and train him to ignore the lens
+# would cry wolf on every run and train you to ignore the lens
 BUILTIN = {
     "artifact-design", "artifact-diagramming", "artifact-capabilities", "dataviz",
     "claude-api", "update-config", "keybindings-help", "code-review", "simplify",
@@ -33,9 +29,20 @@ BUILTIN = {
 }
 
 
+def skill_dirs() -> list[Path]:
+    """Every place a skill can live: the global directory, plus the per-project
+    `.claude/skills` of each repo. Resolved per call rather than frozen at
+    import -- a project added after the daemon started would otherwise have all
+    of its skills read as missing."""
+    dirs = [HOME / ".claude" / "skills"]
+    for root in workspace_roots():
+        dirs += [p / ".claude" / "skills" for p in root.glob("*") if p.is_dir()]
+    return dirs
+
+
 def on_disk() -> set[str]:
     have: set[str] = set(BUILTIN)
-    for d in SKILL_DIRS:
+    for d in skill_dirs():
         if d.is_dir():
             have |= {p.name for p in d.iterdir() if p.is_dir()}
     if PLUGIN_GLOB.is_dir():

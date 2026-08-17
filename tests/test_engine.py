@@ -72,7 +72,7 @@ def main():
     results.append(check("frozen + pending reads as blocked", state, "blocked"))
     results.append(check("blocked reports which tool", pend, ["Edit"]))
 
-    # frozen with nothing pending -> his turn, and the lamp must stay dark
+    # frozen with nothing pending -> your turn, and the lamp must stay dark
     e3 = Engine()
     f3 = write(d / "s3.jsonl", rows_answered())
     now = time.time()

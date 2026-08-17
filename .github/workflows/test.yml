@@ -1,0 +1,33 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  engine:
+    # The Python engine is the part with logic worth guarding -- above all the
+    # two-sample delta that separates "blocked on a prompt" from "mid-call".
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: engine tests
+        run: python3 tests/test_engine.py
+
+  app:
+    # The menu bar app and icon are Swift + AppKit, so they only build on macOS.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: compile the app and the icon generator
+        run: |
+          swiftc -O -swift-version 5 -framework AppKit -o /tmp/Vigil mac/Vigil.swift
+          swiftc -O -swift-version 5 -framework AppKit -o /tmp/makeicon mac/makeicon.swift
+          /tmp/makeicon /tmp/Vigil.iconset
+          iconutil -c icns /tmp/Vigil.iconset -o /tmp/Vigil.icns
+          ls -la /tmp/Vigil /tmp/Vigil.icns

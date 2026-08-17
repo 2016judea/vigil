@@ -1,11 +1,16 @@
 #!/bin/bash
 # Install Vigil properly on this Mac:
-#   1. build Vigil.app          -> ~/Applications/Vigil.app  (menu bar)
+#   1. build Vigil.app          -> /Applications/Vigil.app  (menu bar)
 #   2. install a LaunchAgent    -> daemon runs at login, exactly one, restarts
 #   3. put `vigil` on PATH      -> ~/.local/bin/vigil
 #
 #   ./mac/install.sh            install everything
 #   ./mac/install.sh --uninstall
+#
+# VIGIL_ROOTS in this shell is baked into the LaunchAgent, because the daemon is
+# what reads it -- exporting it in your own shell does nothing once the daemon is
+# up, since the CLI just asks the daemon:
+#   VIGIL_ROOTS=~/code:~/work ./mac/install.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -49,6 +54,13 @@ mdimport /Applications/Vigil.app 2>/dev/null || true
 
 RUNDIR="$SUPPORT"
 
+# only emit the key when set, so a plain re-install does not pin the roots to
+# whatever happened to be exported the last time
+ROOTS_ENTRY=""
+if [ -n "${VIGIL_ROOTS:-}" ]; then
+  ROOTS_ENTRY="    <key>VIGIL_ROOTS</key><string>$VIGIL_ROOTS</string>"
+fi
+
 echo "3/4  installing the LaunchAgent"
 # launchd owns the daemon: one instance, restarted if it dies, started at login.
 # Letting the app spawn it produced orphans that were alive but not listening.
@@ -72,6 +84,7 @@ cat > "$PLIST" <<PLIST_EOF
     <key>PYTHONPATH</key><string>$RUNDIR</string>
     <!-- keep bytecode out of anything signed or version-controlled -->
     <key>PYTHONPYCACHEPREFIX</key><string>$HOME/Library/Caches/vigil</string>
+$ROOTS_ENTRY
   </dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>

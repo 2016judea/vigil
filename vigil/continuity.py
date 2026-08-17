@@ -1,7 +1,7 @@
 """The continuity lens -- "where was I?"
 
-Answers the 22 times in 33 days he typed some version of *where were we* or
-*look at our next session prompt*.
+Answers the 22 times in 33 days of measured usage that some version of *where
+were we* was typed at the start of a session.
 
 The design constraint is the one that kills this kind of feature: a log becomes
 a list. So a row has to be *earned* by a verifiable fact, never by a guess:
@@ -22,9 +22,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from .engine import PROJECTS, _git_root, _last_texts, _tail_lines
-
-HOME = Path.home()
+from .engine import PROJECTS, _git_root, _last_texts, _tail_lines, workspace_roots
 
 # how far back a repo stays interesting without a commit or a live session
 WINDOW_DAYS = 10
@@ -122,11 +120,14 @@ def report(live_repos: set[str] | None = None) -> dict:
             "claude": " ".join(claude.split())[:320],
         }
 
-    # every repo worth a row: recently spoken to, or holding uncommitted work
+    # every repo worth a row: recently spoken to, or holding uncommitted work.
+    # `seen` is already absolute git roots earned from transcripts, so a repo
+    # living outside every root still gets a row if it was actually worked in.
     candidates = set(seen)
-    for p in (HOME / "Desktop").glob("*"):
-        if (p / ".git").is_dir():
-            candidates.add(str(p))
+    for root in workspace_roots():
+        for p in root.glob("*"):
+            if (p / ".git").is_dir():
+                candidates.add(str(p))
 
     repos = []
     for r in candidates:

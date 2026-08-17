@@ -20,6 +20,16 @@ from pathlib import Path
 HOME = Path.home()
 PROJECTS = HOME / ".claude" / "projects"
 
+# the conventional places a checkout sits, one level below home.
+#
+# `Documents` and `Downloads` are deliberately absent. They are TCC-protected,
+# and a launchd agent has no grant and no way to prompt -- so merely globbing
+# one BLOCKS FOREVER instead of raising, which no try/except can catch. Adding
+# `Documents` here hung /api/continuity permanently; the lens never answered.
+# `Desktop` is protected too, but it is where the daemon was already reading
+# from and it is granted; anything else goes in VIGIL_ROOTS explicitly.
+_DEFAULT_ROOTS = ("Desktop", "code", "src", "dev", "repos", "projects", "work")
+
 # how much of a transcript tail to parse; bounded so a 50MB session stays cheap
 TAIL_BYTES = 512 * 1024
 
@@ -37,6 +47,20 @@ _CLI_CANDIDATES = [
     Path("/opt/homebrew/bin/claude"),
     Path("/usr/local/bin/claude"),
 ]
+
+
+def workspace_roots() -> list[Path]:
+    """Directories that *contain* repos, one level down. `VIGIL_ROOTS` overrides
+    (colon-separated), otherwise the conventional locations that exist.
+
+    A single hardcoded root is the wrong failure: the continuity and rot lenses
+    would return *fewer rows* on a machine laid out differently rather than an
+    error, and a thin reading is indistinguishable from a quiet one.
+    """
+    env = os.environ.get("VIGIL_ROOTS", "").strip()
+    if env:
+        return [Path(p).expanduser() for p in env.split(":") if p.strip()]
+    return [HOME / n for n in _DEFAULT_ROOTS if (HOME / n).is_dir()]
 
 
 def claude_binary() -> str | None:
@@ -137,7 +161,7 @@ def _asked(rows: list[dict]) -> str:
 
 
 def _last_texts(rows: list[dict]) -> tuple[str, str]:
-    """(last thing Aidan typed, last thing Claude said) within the window."""
+    """(last thing you typed, last thing Claude said) within the window."""
     user_txt = asst_txt = ""
     for d in rows:
         if d.get("type") == "assistant":
@@ -199,8 +223,8 @@ class Engine:
 
     # -- attribution -----------------------------------------------------
     def repo_for(self, sid: str, path: Path, cwd: str) -> str:
-        """The git root most often WRITTEN to -- not the launch cwd. Sessions
-        launched in bricks routinely push to writing-topology."""
+        """The git root most often WRITTEN to -- not the launch cwd. A session
+        launched in one repo routinely ends up writing to a sibling."""
         # a long session can migrate repos mid-flight, so this cannot be cached
         # forever -- but a full scan is expensive, so recompute on a slow clock
         hit = self._repo.get(sid)
@@ -294,7 +318,7 @@ class Engine:
                 "pid": meta.get("pid"),
                 "repo": self.repo_for(sid, path, meta.get("cwd", "")),
                 "cwd": meta.get("cwd", ""),
-                # a young session has no ai-title yet; his own words beat the
+                # a young session has no ai-title yet; your own words beat the
                 # cwd name, which reads as a wrong repo next to `repo` above
                 "title": (self.title_for(sid, path, rows)
                           or (" ".join(said_you.split())[:60] if said_you else "")
