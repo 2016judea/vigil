@@ -13,7 +13,7 @@ That gives you three surfaces over one daemon:
 |---|---|
 | **Menu bar** | `/Applications/Vigil.app` — a hollow dot at rest, a filled amber dot when a session is blocked. Click for the reading. |
 | **The Face** | <http://127.0.0.1:7717> — the full instrument, phone-readable |
-| **Terminal** | `vigil status` · `vigil watch` · `vigil where` · `vigil rot` |
+| **Terminal** | `vigil status` · `vigil watch` · `vigil where` · `vigil rot` · `vigil models` |
 
 The daemon runs under launchd: one instance, restarted if it dies, started at
 login. Python 3 standard library only. Localhost only. Nothing leaves the machine.
@@ -60,10 +60,15 @@ right trade for a personal instrument but worth stating plainly: `/api/state`
 returns **the last thing you typed** (400 chars) and the last thing Claude said
 (600 chars) per live session, and `/api/continuity` returns your branch names and
 uncommitted filenames. Anything that can reach your loopback interface can read
-that. There is no egress, no telemetry, and nothing is written outside
-`~/Library/Logs` and `/tmp`.
+that. There is no telemetry, and nothing is written outside `~/Library/Logs`, `/tmp`
+and `~/Library/Caches/vigil`.
 
-## The three lenses
+**The daemon makes no outbound request.** One lens does: `vigil models` reads
+openrouter.ai's public catalog, keyless, and only when you invoke it from the
+CLI. It sends nothing but the request — no ids, no paths, no corpus. Every
+other surface, including everything the daemon polls and serves, stays local.
+
+## The four lenses
 
 One substrate, three questions:
 
@@ -77,6 +82,20 @@ One substrate, three questions:
   would act on it.
 - **What is rotting** — `vigil rot`. Skills still being reached for that no
   longer exist on disk.
+- **What has moved on** — `vigil models`. Model ids pinned in your own tracked
+  source that the vendor has since superseded. Rot's mirror: a stale skill is
+  reached for and gone, a stale model id keeps working — at the old price, on
+  the old capability — and nothing anywhere says a newer sibling shipped. Two
+  facts joined, no inference: `git ls-files` says you pin `gemini-3.5-flash`,
+  and the catalog says `gemini-3.7-flash` shipped 2026-08-13. Whether the newer
+  one is *better* is not something either source knows, so the lens does not
+  say it. `--refresh` forces a re-read; otherwise the catalog is cached 6h.
+
+  Two things it will not do. It only reports a pin whose family has a **higher
+  version**, so a preview id and its GA twin read as current. And a versioned
+  id quoted inside prose or a permission rule is still a hit — the contract is
+  "a tracked file contains this string," which is honest but occasionally
+  literal.
 
 ## Logs
 

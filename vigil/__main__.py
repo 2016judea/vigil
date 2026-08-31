@@ -3,6 +3,7 @@ python3 -m vigil status        -> one-shot terminal reading
 python3 -m vigil watch         -> live terminal reading
 python3 -m vigil where         -> what you were doing, and what is still open
 python3 -m vigil rot           -> skills reached for that no longer exist
+python3 -m vigil models        -> pinned model ids a newer sibling has superseded
 """
 
 from __future__ import annotations
@@ -113,6 +114,38 @@ def main() -> None:
             print(f"  {AMBER}gone{RESET}  {m['skill']:<34} {DIM}{m['calls']:>4} calls{RESET}")
         if not r["missing"]:
             print(f"  {DIM}Nothing reached for is missing.{RESET}")
+        print()
+        return
+
+    if cmd == "models":
+        from .models import report
+        r = report(refresh="--refresh" in sys.argv)
+        if r.get("error"):
+            print(f"\n  {DIM}Could not reach the catalog: {r['error']}{RESET}\n")
+            return
+        print()
+        n = len(r["superseded"])
+        print(f"  {BOLD}{n} pinned model{'' if n == 1 else 's'} "
+              f"{'has' if n == 1 else 'have'} a newer sibling.{RESET}")
+        print(f"  {DIM}{r['pins']} ids pinned on this machine; {r['catalog']} models "
+              f"in the catalog, read {r['fetched']}."
+              + (f" (stale: {r['stale']})" if r.get("stale") else "") + RESET)
+        print()
+        for s in r["superseded"]:
+            if not s["code_refs"]:
+                continue
+            newest = s["newest"].split("/")[-1]
+            print(f"  {AMBER}older{RESET} {s['pin']:<28} {DIM}->{RESET} {BOLD}{newest}{RESET}"
+                  f"  {DIM}{s['shipped']} · {s['code_refs']} call site"
+                  f"{'' if s['code_refs'] == 1 else 's'}{RESET}")
+            sites = [f for f in s["files"] if not f.endswith(".md")]
+            for f in sites[:3]:
+                print(f"        {DIM}{f}{RESET}")
+            extra = len(sites) - 3
+            if extra > 0:
+                print(f"        {DIM}+{extra} more{RESET}")
+        if not any(s["code_refs"] for s in r["superseded"]):
+            print(f"  {DIM}Every pinned id is current.{RESET}")
         print()
         return
 
