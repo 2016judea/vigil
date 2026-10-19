@@ -78,6 +78,12 @@ dependencies to rot, no install friction.
 `claude agents --json` gives liveness only — pid, cwd, sessionId, startedAt. It
 does **not** give status. Status is derived here:
 
+> *2026-10-18:* the CLI now also prints an idle/busy `status`. The engine uses it
+> for one thing: a `busy` parent with nothing pending (it is running a subagent,
+> so its own transcript sits still for minutes) is `working`, not `yours`. Five
+> live sessions read "3 answers are waiting" before; "Nothing needs you" after.
+> `blocked` is still derived from the transcript alone.
+
 | State | Test | Lights the lamp |
 |---|---|---|
 | `working` | transcript grew between two polls | no |

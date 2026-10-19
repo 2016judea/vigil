@@ -41,8 +41,10 @@ MAX_AGE = 6 * 3600
 # too much English prose -- "claude-archive", "gpt-ads" and "gemini-app" all
 # turned up in a first pass over the same corpus, and a lens that cries wolf
 # gets ignored.
+# The id ends on a letter or digit: in prose, "we pin claude-opus-5." must not
+# count "claude-opus-5." as a second pin that then fails to parse.
 PIN = re.compile(
-    r"\b((?:claude-(?:opus|sonnet|haiku|fable)|gemini|gpt)-\d[a-zA-Z0-9._-]*)"
+    r"\b((?:claude-(?:opus|sonnet|haiku|fable)|gemini|gpt)-\d(?:[a-zA-Z0-9._-]*[a-zA-Z0-9])?)"
 )
 
 # extensions worth grepping; everything else is data, prose or binary

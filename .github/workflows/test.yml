@@ -16,8 +16,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: engine tests
-        run: python3 tests/test_engine.py
+      - name: engine and models tests
+        run: |
+          python3 tests/test_engine.py
+          python3 tests/test_models.py
 
   app:
     # The menu bar app and icon are Swift + AppKit, so they only build on macOS.

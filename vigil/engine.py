@@ -1,7 +1,7 @@
 """VIGIL state engine.
 
 Derives fleet state from two sources:
-  * `claude agents --json`      -> liveness only (pid, cwd, sessionId, startedAt)
+  * `claude agents --json`      -> liveness (pid, cwd, sessionId, startedAt) + idle/busy
   * ~/.claude/projects/**.jsonl -> everything else, by tailing the transcript
 
 The load-bearing detail is in `classify`: an unanswered tool_use at the tail means
@@ -74,7 +74,9 @@ def claude_binary() -> str | None:
 
 
 def live_sessions() -> list[dict]:
-    """Live Claude processes. Liveness only -- this call carries no status."""
+    """Live Claude processes: pid, cwd, sessionId, startedAt, and the CLI's own
+    idle/busy `status`, which `classify` uses only to keep a busy parent out of
+    "yours"; everything else comes from the transcript."""
     exe = claude_binary()
     if not exe:
         return []
@@ -260,10 +262,15 @@ class Engine:
         return repo
 
     # -- the state machine -----------------------------------------------
-    def classify(self, sid: str, path: Path, rows: list[dict], now: float):
+    def classify(self, sid: str, path: Path, rows: list[dict], now: float, busy: bool = False):
         """Returns (state, pending_tools, seconds_since_it_last_spoke).
 
         `rows` is the already-parsed tail, so a poll reads each transcript once.
+        `busy` is the CLI's own word (`claude agents --json` status == "busy"): a
+        parent running a subagent writes nothing to its transcript for minutes,
+        so a still file with nothing pending is "working", not an answer waiting.
+        It is never a free pass out of "blocked" -- a permission prompt is a
+        pending call on a still file whatever the CLI says.
         """
         try:
             st = path.stat()
@@ -290,6 +297,8 @@ class Engine:
         pending = _pending_tool_uses(rows)
         if pending:
             return "blocked", pending, still_for
+        if busy:
+            return "working", [], still_for
         if still_for > RESTING_AFTER:
             return "resting", [], still_for
         return "yours", [], still_for
@@ -311,7 +320,7 @@ class Engine:
                 continue
             rows = _tail_lines(path)  # parsed once, shared by every consumer below
             said_you, said_ai = _last_texts(rows)
-            state, pending, quiet = self.classify(sid, path, rows, now)
+            state, pending, quiet = self.classify(sid, path, rows, now, busy=meta.get("status") == "busy")
             sessions.append({
                 "id": sid[:8],
                 "sessionId": sid,
